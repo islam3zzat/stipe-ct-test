@@ -63,8 +63,14 @@ export class StripePaymentEnabler implements PaymentEnabler {
 
     if (!stripe) throw new Error("Failed to load Stripe.js");
 
-    // Create an Elements instance — no PaymentIntent yet; the dropin creates one on submit
-    const elements = stripe.elements({ locale: options.locale as any ?? "auto" });
+    // Create an Elements instance in deferred-intent mode so the Payment Element
+    // can render before the PaymentIntent is created (created on submit instead).
+    const elements = stripe.elements({
+      locale: (options.locale as any) ?? "auto",
+      mode: "payment",
+      amount: 100,      // placeholder — Stripe requires a non-zero amount to render
+      currency: "eur",  // must be lowercase ISO 4217
+    });
 
     return {
       baseOptions: {
