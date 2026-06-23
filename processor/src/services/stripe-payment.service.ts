@@ -17,6 +17,7 @@ import { log } from '../libs/logger';
 import { appLogger, paymentSDK } from '../payment-sdk';
 import { getStripeClient } from '../stripe/stripe-client';
 import { AbstractPaymentService } from './abstract-payment.service';
+import { StripeConfigElementResponseSchemaDTO } from '../dtos/stripe-payment.dto';
 import {
   CancelPaymentRequest,
   CapturePaymentRequest,
@@ -36,6 +37,21 @@ export type StripePaymentServiceOptions = {
 export class StripePaymentService extends AbstractPaymentService {
   constructor(opts: StripePaymentServiceOptions) {
     super(opts.ctCartService, opts.ctPaymentService, opts.ctPaymentMethodService);
+  }
+
+  public async initializeCartPayment(): Promise<StripeConfigElementResponseSchemaDTO> {
+    const cfg = getConfig();
+    const ctCart = await this.ctCartService.getCart({ id: getCartIdFromContext() });
+    const amountPlanned = await this.ctCartService.getPaymentAmount({ cart: ctCart });
+    return {
+      cartInfo: {
+        amount: amountPlanned.centAmount,
+        currency: amountPlanned.currencyCode,
+      },
+      captureMethod: cfg.stripeCaptureMethod,
+      collectBillingAddress: cfg.stripeCollectBillingAddress,
+      layout: JSON.stringify({ type: 'tabs', defaultCollapsed: false }),
+    };
   }
 
   public async config(): Promise<ConfigResponse> {

@@ -34,24 +34,26 @@ export class StripePaymentEnabler implements PaymentEnabler {
     options: EnablerOptions,
   ): Promise<{ baseOptions: StripeBaseOptions }> => {
     // Fetch Stripe publishable key + return URL from the processor
-    const configRes = await fetch(`${options.processorUrl}/operations/config`, {
-      method: "GET",
-      headers: {
-        "Content-Type": "application/json",
-        "X-Session-Id": options.sessionId,
-      },
-    });
+    const fetchHeaders = {
+      "Content-Type": "application/json",
+      "X-Session-Id": options.sessionId,
+    };
+
+    // Fetch processor config (publishableKey, merchantReturnUrl) and cart info in parallel
+    const [configRes, cartElementRes] = await Promise.all([
+      fetch(`${options.processorUrl}/operations/config`, { method: "GET", headers: fetchHeaders }),
+      fetch(`${options.processorUrl}/config-element/payment`, { method: "GET", headers: fetchHeaders }),
+    ]);
 
     if (!configRes.ok) {
-      throw new Error(
-        `Failed to load processor config: ${configRes.status} ${configRes.statusText}`,
-      );
+      throw new Error(`Failed to load processor config: ${configRes.status} ${configRes.statusText}`);
+    }
+    if (!cartElementRes.ok) {
+      throw new Error(`Failed to load cart element config: ${cartElementRes.status} ${cartElementRes.statusText}`);
     }
 
-    const config: {
-      publishableKey: string;
-      merchantReturnUrl: string;
-    } = await configRes.json();
+    const config: { publishableKey: string; merchantReturnUrl: string } = await configRes.json();
+    const cartElement: { cartInfo: { amount: number; currency: string }; captureMethod: string } = await cartElementRes.json();
 
     if (!config.publishableKey) {
       throw new Error("Processor config missing publishableKey");
@@ -63,13 +65,13 @@ export class StripePaymentEnabler implements PaymentEnabler {
 
     if (!stripe) throw new Error("Failed to load Stripe.js");
 
-    // Create an Elements instance in deferred-intent mode so the Payment Element
-    // can render before the PaymentIntent is created (created on submit instead).
+    // Deferred-intent mode: Elements renders with real cart amount before PaymentIntent is created on submit
     const elements = stripe.elements({
       locale: (options.locale as any) ?? "auto",
       mode: "payment",
-      amount: 100,      // placeholder — Stripe requires a non-zero amount to render
-      currency: "eur",  // must be lowercase ISO 4217
+      amount: cartElement.cartInfo.amount,
+      currency: cartElement.cartInfo.currency.toLowerCase(),
+      capture_method: cartElement.captureMethod as "automatic" | "manual",
     });
 
     return {

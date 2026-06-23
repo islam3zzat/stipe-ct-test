@@ -1,6 +1,12 @@
 import { SessionHeaderAuthenticationHook } from '@commercetools/connect-payments-sdk';
+import { Type } from '@sinclair/typebox';
 import { FastifyInstance, FastifyPluginOptions } from 'fastify';
-import { StripeCreatePaymentResponseSchema, StripeCreatePaymentResponseSchemaDTO } from '../dtos/stripe-payment.dto';
+import {
+  StripeConfigElementResponseSchema,
+  StripeConfigElementResponseSchemaDTO,
+  StripeCreatePaymentResponseSchema,
+  StripeCreatePaymentResponseSchemaDTO,
+} from '../dtos/stripe-payment.dto';
 import { StripePaymentService } from '../services/stripe-payment.service';
 
 type StripePaymentRoutesOptions = {
@@ -12,6 +18,30 @@ export const stripePaymentRoutes = async (
   fastify: FastifyInstance,
   opts: FastifyPluginOptions & StripePaymentRoutesOptions,
 ) => {
+  /**
+   * GET /config-element/:paymentComponent
+   * Returns cart amount/currency + Stripe Elements config so the enabler can
+   * initialize stripe.elements() in deferred-intent mode before submit.
+   */
+  fastify.get<{ Params: { paymentComponent: string }; Reply: StripeConfigElementResponseSchemaDTO }>(
+    '/config-element/:paymentComponent',
+    {
+      preHandler: [opts.sessionHeaderAuthHook.authenticate()],
+      schema: {
+        params: {
+          type: 'object',
+          properties: { paymentComponent: Type.String() },
+          required: ['paymentComponent'],
+        },
+        response: { 200: StripeConfigElementResponseSchema },
+      },
+    },
+    async (_, reply) => {
+      const result = await opts.paymentService.initializeCartPayment();
+      return reply.status(200).send(result);
+    },
+  );
+
   /**
    * POST /payments
    * Called by the enabler after the customer submits the Payment Element.
