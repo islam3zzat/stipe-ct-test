@@ -22,6 +22,7 @@ export class StripeDropinComponent implements DropinComponent {
   private paymentElement: StripePaymentElement | null = null;
   private mountedSelector: string | null = null;
   private paymentReference: string | null = null;
+  private errorEl: HTMLElement | null = null;
 
   constructor(
     private baseOptions: StripeBaseOptions,
@@ -37,16 +38,29 @@ export class StripeDropinComponent implements DropinComponent {
     const container = document.querySelector(selector);
     if (!container) throw new Error(`Mount target not found: ${selector}`);
 
+    // Inline error element shown for card_error / validation_error
+    this.errorEl = document.createElement("div");
+    this.errorEl.setAttribute("role", "alert");
+    this.errorEl.style.cssText = "color:#df1b41;font-size:0.875rem;margin-top:0.5rem;min-height:1.25rem";
+    container.appendChild(this.errorEl);
+
     this.paymentElement = this.elements.create("payment", {
       layout: "tabs",
     });
 
     this.paymentElement.mount(selector);
 
+    // Clear inline error when the user edits their card details
+    this.paymentElement.on("change", () => this.showInlineError(""));
+
     // Signal ready once the Payment Element has fully loaded
     this.paymentElement.on("ready", () => {
       this.dropinOptions.onDropinReady?.();
     });
+  }
+
+  private showInlineError(message: string): void {
+    if (this.errorEl) this.errorEl.textContent = message;
   }
 
   async submit(): Promise<void> {
@@ -58,6 +72,11 @@ export class StripeDropinComponent implements DropinComponent {
       // 1. Trigger client-side validation — shows field errors without submitting
       const { error: submitError } = await this.elements.submit();
       if (submitError) {
+        // validation_error from elements.submit() means the user left a field empty/invalid
+        if (submitError.type === "validation_error") {
+          this.showInlineError(submitError.message ?? "Please complete your payment details.");
+          return;
+        }
         this.baseOptions.onError(submitError);
         return;
       }
@@ -104,6 +123,17 @@ export class StripeDropinComponent implements DropinComponent {
       });
 
       if (confirmError) {
+        // User-recoverable errors (wrong card number, declined, etc.) are shown
+        // inline near the payment form — the user can correct and resubmit without
+        // the storefront needing to intervene.
+        if (
+          confirmError.type === "card_error" ||
+          confirmError.type === "validation_error"
+        ) {
+          this.showInlineError(confirmError.message ?? "Payment failed. Please check your card details.");
+          return;
+        }
+        // Non-recoverable errors (config mismatch, Stripe outage) bubble to the storefront.
         this.baseOptions.onError(confirmError, { paymentReference });
         return;
       }
