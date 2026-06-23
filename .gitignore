@@ -1,0 +1,6 @@
+# Code Editor directories and files
+.idea
+.env
+.connect
+.vscode
+.claude

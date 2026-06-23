@@ -1,0 +1,77 @@
+deployAs:
+  - name: enabler
+    applicationType: assets
+  - name: processor
+    applicationType: service
+    endpoint: /
+    scripts:
+      postDeploy: npm install && npm run build && npm run connector:post-deploy
+      preUndeploy: npm install && npm run build && npm run connector:pre-undeploy
+    configuration:
+      standardConfiguration:
+        - key: CTP_PROJECT_KEY
+          description: commercetools project key
+          required: true
+        - key: CTP_CLIENT_ID
+          description: commercetools API client ID (manage_payments, manage_orders, view_sessions, view_api_clients, manage_checkout_payment_intents, introspect_oauth_tokens, manage_types)
+          required: true
+        - key: CTP_AUTH_URL
+          description: commercetools Auth URL
+          required: true
+          default: https://auth.europe-west1.gcp.commercetools.com
+        - key: CTP_API_URL
+          description: commercetools API URL
+          required: true
+          default: https://api.europe-west1.gcp.commercetools.com
+        - key: CTP_SESSION_URL
+          description: Session API URL
+          required: true
+          default: https://session.europe-west1.gcp.commercetools.com
+        - key: CTP_CHECKOUT_URL
+          description: Checkout API URL
+          required: true
+          default: https://checkout.europe-west1.gcp.commercetools.com
+        - key: CTP_JWKS_URL
+          description: JWKs URL for JWT validation
+          required: true
+          default: https://mc-api.europe-west1.gcp.commercetools.com/.well-known/jwks.json
+        - key: CTP_JWT_ISSUER
+          description: JWT issuer for session validation
+          required: true
+          default: https://mc-api.europe-west1.gcp.commercetools.com
+        - key: STRIPE_PUBLISHABLE_KEY
+          description: Stripe publishable key (pk_test_… or pk_live_…) — returned to browser via GET /operations/config
+          required: true
+        - key: STRIPE_CAPTURE_METHOD
+          description: "'automatic' to charge immediately; 'manual' to authorize now and capture on fulfillment"
+          required: false
+          default: manual
+        - key: STRIPE_COLLECT_BILLING_ADDRESS
+          description: Whether the Payment Element collects billing address — 'auto', 'never', or 'if_required'
+          required: false
+          default: auto
+        - key: STRIPE_WEBHOOK_ID
+          description: Stripe webhook endpoint ID (we_…) — set after registering the webhook in the Stripe dashboard
+          required: false
+        - key: MERCHANT_RETURN_URL
+          description: Absolute URL (with scheme) where the customer is redirected after payment — e.g. https://shop.example.com/payment-complete
+          required: true
+          default: http://localhost:3000/payment-complete
+        - key: ALLOWED_ORIGINS
+          description: Comma-separated list of browser origins allowed to call the processor — must include the storefront origin
+          required: true
+          default: http://localhost:3000
+        - key: PAYMENT_INTERFACE
+          description: Value written to paymentMethodInfo.paymentInterface on the CT Payment
+          required: false
+          default: checkout-stripe
+      securedConfiguration:
+        - key: CTP_CLIENT_SECRET
+          description: commercetools API client secret
+          required: true
+        - key: STRIPE_SECRET_KEY
+          description: Stripe secret API key (sk_test_… or sk_live_…)
+          required: true
+        - key: STRIPE_WEBHOOK_SIGNING_SECRET
+          description: Stripe webhook signing secret — from the Stripe dashboard after registering the webhook endpoint
+          required: true
