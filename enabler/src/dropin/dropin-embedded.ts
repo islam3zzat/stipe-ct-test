@@ -71,6 +71,7 @@ export class StripeDropinComponent implements DropinComponent {
             "Content-Type": "application/json",
             "X-Session-Id": this.baseOptions.sessionId,
           },
+          body: "{}",
         },
       );
 
