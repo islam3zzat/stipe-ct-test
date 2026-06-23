@@ -145,7 +145,7 @@ export class StripePaymentService extends AbstractPaymentService {
       amount: amountPlanned.centAmount,
       currency: amountPlanned.currencyCode.toLowerCase(),
       capture_method: cfg.stripeCaptureMethod,
-      payment_method_types: ['card'],
+      automatic_payment_methods: { enabled: true },
       metadata: {
         ctPaymentId: ctPayment.id,
         ctCartId: ctCart.id,
